@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: chatapp
+  config:
+    import: optional:file:.env[.properties]
+  r2dbc:
+    url: ${DB_R2DBC_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  datasource:
+    url: ${DB_JDBC_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+jwt:
+  secret: ${JWT_SECRET}
+  ttl: 86400000

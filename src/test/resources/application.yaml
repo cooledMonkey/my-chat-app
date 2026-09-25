@@ -1,0 +1,26 @@
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  r2dbc:
+    url: "r2dbc:h2:mem:///chatapp-test?options=DB_CLOSE_DELAY=-1"
+    username: sa
+    password:
+  datasource:
+    url: "jdbc:h2:mem:chatapp-test;DB_CLOSE_DELAY=-1"
+    username: sa
+    password:
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+debug: true
+
+jwt:
+  secret: ${JWT_SECRET}
+  ttl: 86400000
+
+logging:
+  level:
+    liquibase: DEBUG
+    org.springframework.boot.autoconfigure.liquibase: DEBUG
+    org.springframework.r2dbc: DEBUG
+    io.r2dbc: DEBUG
