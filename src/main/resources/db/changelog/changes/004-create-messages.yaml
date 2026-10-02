@@ -1,0 +1,39 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-create-messages
+      author: chatapp
+      changes:
+        - createTable:
+            tableName: messages
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: channel_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_messages_channel
+                    references: channels(id)
+              - column:
+                  name: author_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_messages_author
+                    references: users(id)
+              - column:
+                  name: text
+                  type: varchar(4000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sent_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false

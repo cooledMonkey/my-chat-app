@@ -1,0 +1,32 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-channel-members
+      author: chatapp
+      changes:
+        - createTable:
+            tableName: channel_members
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: channel_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_channel_members_channel
+                    references: channels(id)
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_channel_members_user
+                    references: users(id)
+        - addUniqueConstraint:
+            tableName: channel_members
+            columnNames: channel_id, user_id
+            constraintName: uq_channel_members_channel_user

@@ -27,6 +27,8 @@ dependencies {
 	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
 	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
 	compileOnly("org.projectlombok:lombok")
+	// Liquibase needs a JDBC DataSource; the reactive stack ships neither spring-jdbc nor a pool
+	implementation("org.springframework.boot:spring-boot-starter-jdbc")
 	runtimeOnly("org.postgresql:r2dbc-postgresql")
 	runtimeOnly("org.postgresql:postgresql")
 	annotationProcessor("org.projectlombok:lombok")
