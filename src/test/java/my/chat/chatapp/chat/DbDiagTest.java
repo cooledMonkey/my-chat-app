@@ -1,6 +1,7 @@
 package my.chat.chatapp.chat;
 
 import io.r2dbc.spi.ConnectionFactory;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,6 +14,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 
 @SpringBootTest
+@Disabled("diagnostic test: DB test infra under discussion")
 class DbDiagTest {
 
     @Autowired

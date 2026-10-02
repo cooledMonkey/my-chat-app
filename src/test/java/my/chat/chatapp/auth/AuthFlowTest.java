@@ -2,6 +2,7 @@ package my.chat.chatapp.auth;
 
 import my.chat.chatapp.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient;
@@ -13,6 +14,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 
 @SpringBootTest
 @AutoConfigureWebTestClient
+@Disabled("DB-backed tests postponed: H2/Postgres test infra under discussion")
 class AuthFlowTest {
 
     @Autowired

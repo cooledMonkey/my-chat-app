@@ -18,4 +18,5 @@ public class ChannelMember {
     private Long id;
     private Long channelId;
     private Long userId;
+    private ChannelRole role;
 }

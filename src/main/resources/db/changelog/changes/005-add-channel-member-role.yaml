@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-add-channel-member-role
+      author: chatapp
+      changes:
+        - addColumn:
+            tableName: channel_members
+            columns:
+              - column:
+                  name: role
+                  type: varchar(16)
+        - update:
+            tableName: channel_members
+            columns:
+              - column:
+                  name: role
+                  value: ADMIN
+            where: EXISTS (SELECT 1 FROM channels c WHERE c.id = channel_members.channel_id AND c.created_by = channel_members.user_id)
+        - addNotNullConstraint:
+            tableName: channel_members
+            columnName: role
+            defaultValue: MEMBER

@@ -7,3 +7,5 @@ databaseChangeLog:
       file: classpath:db/changelog/changes/003-create-channel-members.yaml
   - include:
       file: classpath:db/changelog/changes/004-create-messages.yaml
+  - include:
+      file: classpath:db/changelog/changes/005-add-channel-member-role.yaml

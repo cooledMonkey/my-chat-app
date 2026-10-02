@@ -27,7 +27,7 @@ public class MessageService {
         if (text == null || text.isBlank()) {
             return Mono.error(new BadRequestException("message text is required"));
         }
-        return channelService.findForUser(channelId, authorId)
+        return channelService.findForPosting(channelId, authorId)
                 .then(userRepository.findById(authorId))
                 .flatMap(author -> messageRepository.save(Message.builder()
                                 .channelId(channelId)

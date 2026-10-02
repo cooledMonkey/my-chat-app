@@ -20,17 +20,20 @@ public class ChannelService {
     private final ChannelMemberRepository channelMemberRepository;
     private final UserRepository userRepository;
 
-    public Mono<Channel> createGroup(String name, Long creatorId) {
+    public Mono<Channel> create(String name, ChannelType type, Long creatorId) {
+        if (type == null || type == ChannelType.DIRECT) {
+            return Mono.error(new BadRequestException("type must be GROUP or CHANNEL"));
+        }
         if (name == null || name.isBlank()) {
             return Mono.error(new BadRequestException("channel name is required"));
         }
         return channelRepository.save(Channel.builder()
                         .name(name.trim())
-                        .type(ChannelType.GROUP)
+                        .type(type)
                         .createdBy(creatorId)
                         .createdAt(Instant.now())
                         .build())
-                .flatMap(channel -> join(channel.getId(), creatorId).thenReturn(channel));
+                .flatMap(channel -> join(channel.getId(), creatorId, ChannelRole.ADMIN).thenReturn(channel));
     }
 
     public Mono<Channel> createOrGetDirect(Long currentUserId, Long otherUserId) {
@@ -52,9 +55,20 @@ public class ChannelService {
                         .createdBy(currentUserId)
                         .createdAt(Instant.now())
                         .build())
-                .flatMap(channel -> join(channel.getId(), currentUserId)
-                        .then(join(channel.getId(), otherUserId))
+                .flatMap(channel -> join(channel.getId(), currentUserId, ChannelRole.MEMBER)
+                        .then(join(channel.getId(), otherUserId, ChannelRole.MEMBER))
                         .thenReturn(channel));
+    }
+
+    public Mono<ChannelMember> subscribe(Long channelId, Long userId) {
+        return channelRepository.findById(channelId)
+                .switchIfEmpty(Mono.error(new NotFoundException("channel not found: " + channelId)))
+                .flatMap(channel -> {
+                    if (channel.getType() != ChannelType.CHANNEL) {
+                        return Mono.error(new BadRequestException("only channels can be subscribed to"));
+                    }
+                    return join(channelId, userId, ChannelRole.MEMBER);
+                });
     }
 
     public Flux<Channel> listForUser(Long userId) {
@@ -62,15 +76,31 @@ public class ChannelService {
                 .flatMapSequential(member -> channelRepository.findById(member.getChannelId()));
     }
 
-    public Mono<ChannelMember> addMember(Long channelId, Long userId) {
+    public Mono<ChannelMember> addMember(Long channelId, Long callerId, Long userId) {
         if (userId == null) {
             return Mono.error(new BadRequestException("userId is required"));
         }
-        return channelRepository.findById(channelId)
-                .switchIfEmpty(Mono.error(new NotFoundException("channel not found: " + channelId)))
-                .flatMap(channel -> userRepository.findById(userId)
+        return findForUser(channelId, callerId)
+                .flatMap(channel -> requireChannelAdmin(channel, callerId,
+                        "only channel admins can add members"))
+                .then(userRepository.findById(userId)
                         .switchIfEmpty(Mono.error(new NotFoundException("user not found: " + userId))))
-                .flatMap(user -> join(channelId, userId));
+                .flatMap(user -> join(channelId, userId, ChannelRole.MEMBER));
+    }
+
+    public Mono<ChannelMember> promoteToAdmin(Long channelId, Long callerId, Long userId) {
+        if (userId == null) {
+            return Mono.error(new BadRequestException("userId is required"));
+        }
+        return findForUser(channelId, callerId)
+                .flatMap(channel -> requireChannelAdmin(channel, callerId,
+                        "only channel admins can manage admins"))
+                .then(channelMemberRepository.findByChannelIdAndUserId(channelId, userId)
+                        .switchIfEmpty(Mono.error(new BadRequestException("user is not a member of this channel"))))
+                .flatMap(member -> {
+                    member.setRole(ChannelRole.ADMIN);
+                    return channelMemberRepository.save(member);
+                });
     }
 
     public Mono<Boolean> isMember(Long channelId, Long userId) {
@@ -84,22 +114,45 @@ public class ChannelService {
                 .switchIfEmpty(Mono.error(new AccessDeniedException("you are not a member of this channel")));
     }
 
-    public Mono<ChannelView> getChannelView(Long channelId, Long userId) {
+    public Mono<Channel> findForPosting(Long channelId, Long userId) {
         return findForUser(channelId, userId)
-                .flatMap(this::toView);
+                .flatMap(channel -> requireChannelAdmin(channel, userId, "only channel admins can post"));
     }
 
-    public Mono<ChannelView> toView(Channel channel) {
+    public Mono<ChannelView> getChannelView(Long channelId, Long userId) {
+        return findForUser(channelId, userId)
+                .flatMap(channel -> toView(channel, userId));
+    }
+
+    public Mono<ChannelView> toView(Channel channel, Long viewerId) {
         return channelMemberRepository.findAllByChannelId(channel.getId())
                 .flatMapSequential(member -> userRepository.findById(member.getUserId()))
                 .map(UserView::from)
                 .collectList()
-                .map(members -> ChannelView.from(channel, members));
+                .flatMap(members -> channelMemberRepository.findByChannelIdAndUserId(channel.getId(), viewerId)
+                        .map(member -> ChannelView.from(channel, members, member.getRole()))
+                        .switchIfEmpty(Mono.fromSupplier(() -> ChannelView.from(channel, members, null))));
     }
 
-    private Mono<ChannelMember> join(Long channelId, Long userId) {
+    private Mono<Channel> requireChannelAdmin(Channel channel, Long userId, String errorMessage) {
+        if (channel.getType() != ChannelType.CHANNEL) {
+            return Mono.just(channel);
+        }
+        return isChannelAdmin(channel.getId(), userId)
+                .flatMap(isAdmin -> isAdmin
+                        ? Mono.just(channel)
+                        : Mono.error(new AccessDeniedException(errorMessage)));
+    }
+
+    private Mono<Boolean> isChannelAdmin(Long channelId, Long userId) {
+        return channelMemberRepository.findByChannelIdAndUserId(channelId, userId)
+                .map(member -> member.getRole() == ChannelRole.ADMIN)
+                .defaultIfEmpty(false);
+    }
+
+    private Mono<ChannelMember> join(Long channelId, Long userId, ChannelRole role) {
         return channelMemberRepository.findByChannelIdAndUserId(channelId, userId)
                 .switchIfEmpty(Mono.defer(() -> channelMemberRepository.save(
-                        ChannelMember.builder().channelId(channelId).userId(userId).build())));
+                        ChannelMember.builder().channelId(channelId).userId(userId).role(role).build())));
     }
 }
